@@ -54,6 +54,8 @@ class LinearRegression:
                 return self.theta,self.J
 
         def predict(self,X):
+                if self.mean_normalization:
+                        X=self._mean_normalization_(X)
                 if self.polynomial_features and self.polynomial_features_degree>=2:
                         X=self.__PolynomialFeatures__(X,self.polynomial_features_degree)
                 X=join_ones(X)
@@ -172,6 +174,27 @@ class LinearRegression:
                 else:
                         X_=np.array(X_)
                 return np.array(X_).transpose()
+        def _mean_normalization_(self,X):
+                X=np.array(X)
+                new_X=[]
+                try:
+                        m,n=X.shape
+                except:
+                        n=1
+                        X=X.reshape(len(X),n)
+                for i in range(0,n):
+                        x=X[:,i]
+                        normalized=(x-np.mean(x))/(x.max()-x.min())
+                        new_X.append(normalized)
+                new_X=np.array(new_X)
+                if n==1:
+                        new_X=new_X[0]
+                else:
+                        new_X=new_X.transpose()
+                
+                return new_X
+        
+        
                         
         def fit(self,X,y,test_size=0.1,cv_size=0.1,chooseLambda=False,
                 Test=True,
@@ -182,10 +205,15 @@ class LinearRegression:
                 learning_graph=False,
                 shuffle=False,shuffle_random_state=100,
                 learning_curve=False,learning_curve_multiplier=1,learning_curve_step=1,
-                polynomial_features=False,polynomial_features_degree=2):
+                polynomial_features=False,polynomial_features_degree=2,
+                mean_normalization=False,
+                order=['chooseAlpha','chooseLambda']):
 
                 self.polynomial_features=polynomial_features
                 self.polynomial_features_degree=polynomial_features_degree
+                self.mean_normalization=mean_normalization
+                if mean_normalization:
+                        X=self._mean_normalization_(X)
                 
                 if shuffle:
                         from sklearn.utils import shuffle
@@ -199,15 +227,17 @@ class LinearRegression:
                         trainX,testX,trainY,testY=train_test_split(self.X,self.y,test_size=test_size+cv_size,random_state=100)
                         testX,cvX,testY,cvY=train_test_split(testX,testY,test_size=cv_size/(cv_size+test_size))
                         self.X=trainX;self.y=trainY
-                if chooseAlpha:
-                    self.__chooseAlpha__(cvX,cvY,step=alpha_step,multiplier=alpha_multiplier,
-                                         initial=alpha_initial,upto=alpha_upto,graph=alpha_graph)
+                for i in order:
+                        if i=='chooseAlpha':
+                                if chooseAlpha:
+                                    self.__chooseAlpha__(cvX,cvY,step=alpha_step,multiplier=alpha_multiplier,
+                                                         initial=alpha_initial,upto=alpha_upto,graph=alpha_graph)
+                        elif i=='chooseLambda':
+                                if chooseLambda:
+                                    self.__chooseLambda__(cvX,cvY,step=lambda_step,multiplier=lambda_multiplier,
+                                                         initial=lambda_initial,upto=lambda_upto,graph=lambda_graph)
                 if learning_curve:
                     self.__learningCurve__(testX,testY,learning_curve_multiplier,learning_curve_step)
-                
-                if chooseLambda:
-                    self.__chooseLambda__(cvX,cvY,step=lambda_step,multiplier=lambda_multiplier,
-                                         initial=lambda_initial,upto=lambda_upto,graph=lambda_graph)
                 
                 self.theta,trainError=self.__train__(learning_graph=learning_graph)
 
